@@ -4,38 +4,30 @@ Write-Host ""
 # Navegar para a pasta backend
 Set-Location -Path "$PSScriptRoot\backend"
 
-# Tentar encontrar o Node.js
-$nodePaths = @(
-    "C:\Program Files\nodejs\node.exe",
-    "C:\Program Files (x86)\nodejs\node.exe"
-)
-
-$nodeFound = $false
-
-foreach ($path in $nodePaths) {
-    if (Test-Path $path) {
-        Write-Host "✅ Node.js encontrado em: $path" -ForegroundColor Green
-        Write-Host "🌐 Servidor será iniciado em: http://localhost:3000" -ForegroundColor Cyan
-        Write-Host "📱 Interface em: http://localhost:3000/app" -ForegroundColor Cyan
-        Write-Host ""
-        Write-Host "Pressione Ctrl+C para parar o servidor" -ForegroundColor Yellow
-        Write-Host ""
-        
-        & $path index.js
-        $nodeFound = $true
-        break
-    }
-}
-
-if (-not $nodeFound) {
-    Write-Host "❌ Node.js não encontrado nos caminhos padrão" -ForegroundColor Red
-    Write-Host "Tentando usar 'node' do PATH..." -ForegroundColor Yellow
+# Verificar se Node.js está disponível
+try {
+    $nodeVersion = node --version
+    Write-Host "✅ Node.js encontrado: $nodeVersion" -ForegroundColor Green
+    Write-Host "🌐 Servidor será iniciado em: http://localhost:3000" -ForegroundColor Cyan
+    Write-Host "📱 Interface em: http://localhost:3000/app" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Pressione Ctrl+C para parar o servidor" -ForegroundColor Yellow
+    Write-Host ""
     
-    try {
-        node index.js
+    # Iniciar o servidor
+    node index.js
+}
+catch {
+    Write-Host "❌ Node.js não encontrado no PATH" -ForegroundColor Red
+    Write-Host "Tentando usar caminho completo..." -ForegroundColor Yellow
+    
+    $nodePath = "C:\Program Files\nodejs\node.exe"
+    if (Test-Path $nodePath) {
+        Write-Host "✅ Node.js encontrado em: $nodePath" -ForegroundColor Green
+        & $nodePath index.js
     }
-    catch {
-        Write-Host "❌ Erro: Node.js não está instalado ou não está no PATH" -ForegroundColor Red
+    else {
+        Write-Host "❌ Node.js não encontrado" -ForegroundColor Red
         Write-Host "Por favor, instale o Node.js de: https://nodejs.org" -ForegroundColor Yellow
     }
 }

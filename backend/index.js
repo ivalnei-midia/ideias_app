@@ -3,20 +3,52 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const path = require('path');
 
+// Importar configuração do banco de dados
+require('./config/database');
+
+// Importar rotas
+const ideasRoutes = require('./routes/ideas');
+const servicesRoutes = require('./routes/services');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
 
 // Middlewares
-app.use(cors());
+app.use(cors({
+    origin: NODE_ENV === 'production' ? 
+        ['https://your-domain.com', 'https://your-app.vercel.app'] : 
+        ['http://localhost:3000', 'http://127.0.0.1:3000']
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Servir arquivos estáticos do frontend
 app.use(express.static(path.join(__dirname, '../frontend')));
 
+// Rotas da API
+app.use('/api/ideas', ideasRoutes);
+app.use('/api/services', servicesRoutes);
+
 // Rota básica
 app.get('/', (req, res) => {
-    res.json({ message: 'Servidor rodando' });
+    res.json({ 
+        message: 'IdeasApp API v2.0',
+        status: 'online',
+        environment: NODE_ENV,
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Rota para verificar status da API
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'healthy',
+        uptime: process.uptime(),
+        timestamp: new Date().toISOString(),
+        database: 'connected',
+        environment: NODE_ENV
+    });
 });
 
 // Rota para servir o frontend
@@ -26,18 +58,54 @@ app.get('/app', (req, res) => {
 
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ error: 'Algo deu errado!' });
+    console.error('Error:', err.stack);
+    res.status(500).json({ 
+        success: false,
+        error: NODE_ENV === 'production' ? 'Erro interno do servidor' : err.message
+    });
 });
 
 // Middleware para rotas não encontradas
 app.use('*', (req, res) => {
-    res.status(404).json({ error: 'Rota não encontrada' });
+    res.status(404).json({ 
+        success: false,
+        error: 'Rota não encontrada',
+        path: req.originalUrl
+    });
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+    console.log('SIGTERM received. Shutting down gracefully...');
+    process.exit(0);
+});
+
+process.on('SIGINT', () => {
+    console.log('SIGINT received. Shutting down gracefully...');
+    process.exit(0);
 });
 
 // Iniciar servidor
-app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
-    console.log(`Acesse: http://localhost:${PORT}`);
-    console.log(`Frontend: http://localhost:${PORT}/app`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🚀 IdeasApp Backend v2.0 iniciado!`);
+    console.log(`📊 Ambiente: ${NODE_ENV}`);
+    console.log(`📡 Servidor rodando na porta ${PORT}`);
+    if (NODE_ENV === 'development') {
+        console.log(`🌐 Acesse: http://localhost:${PORT}`);
+        console.log(`🎨 Frontend: http://localhost:${PORT}/app`);
+        console.log(`🔗 API: http://localhost:${PORT}/api/health`);
+        console.log(`\n📡 Endpoints disponíveis:`);
+        console.log(`   GET    /api/health                - Status da API`);
+        console.log(`   GET    /api/ideas                 - Listar ideias`);
+        console.log(`   POST   /api/ideas                 - Criar ideia`);
+        console.log(`   GET    /api/ideas/:id             - Buscar ideia`);
+        console.log(`   PUT    /api/ideas/:id             - Atualizar ideia`);
+        console.log(`   DELETE /api/ideas/:id             - Excluir ideia`);
+        console.log(`   GET    /api/ideas/meta/stats      - Estatísticas`);
+        console.log(`   GET    /api/ideas/meta/tags       - Listar tags`);
+        console.log(`   POST   /api/services/migrate      - Migrar localStorage`);
+        console.log(`   POST   /api/services/export       - Exportar ideias`);
+        console.log(`   POST   /api/services/search       - Busca avançada`);
+    }
+    console.log(`\n💾 Banco de dados SQLite configurado e pronto!`);
 }); 

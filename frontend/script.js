@@ -4,6 +4,7 @@ let currentFilter = 'todas';
 let currentKeyword = '';
 let currentView = 'grid';
 let isEditMode = false;
+let isApiMode = false; // Flag para determinar se estamos usando API ou localStorage
 
 // Elementos DOM
 const ideaForm = document.getElementById('ideaForm');
@@ -21,11 +22,192 @@ const filteredIdeasStat = document.getElementById('filteredIdeas');
 const viewBtns = document.querySelectorAll('.view-btn');
 
 // Inicialização da aplicação
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('IdeasApp carregado!');
-    loadIdeas();
+    await initializeApp();
     setupEventListeners();
 });
+
+// Inicializar aplicação
+async function initializeApp() {
+    try {
+        // Verificar se a API está disponível
+        const apiAvailable = await apiService.isApiAvailable();
+        
+        if (apiAvailable) {
+            console.log('✅ API disponível - Modo API ativado');
+            isApiMode = true;
+            await migrateLocalStorageToApi();
+            await loadIdeasFromApi();
+        } else {
+            console.log('⚠️ API não disponível - Usando localStorage');
+            isApiMode = false;
+            loadIdeasFromLocalStorage();
+        }
+    } catch (error) {
+        console.error('Erro na inicialização:', error);
+        isApiMode = false;
+        loadIdeasFromLocalStorage();
+    }
+}
+
+// Migrar dados do localStorage para a API (apenas na primeira vez)
+async function migrateLocalStorageToApi() {
+    try {
+        const localData = localStorage.getItem('ideasApp_ideas');
+        const migrationFlag = localStorage.getItem('ideasApp_migrated');
+        
+        if (localData && !migrationFlag) {
+            console.log('🔄 Migrando dados do localStorage para a API...');
+            const localIdeas = JSON.parse(localData);
+            
+            if (localIdeas.length > 0) {
+                const result = await apiService.migrateFromLocalStorage(localIdeas);
+                console.log(`✅ ${result.migrated} ideias migradas com sucesso!`);
+                
+                // Marcar como migrado
+                localStorage.setItem('ideasApp_migrated', 'true');
+                showSuccessMessage(`${result.migrated} ideias migradas com sucesso para o servidor!`);
+            }
+        }
+    } catch (error) {
+        console.error('Erro na migração:', error);
+        showErrorMessage('Erro ao migrar dados. Continuando no modo offline.');
+    }
+}
+
+// ========== MÉTODOS DE CARREGAMENTO ==========
+
+// Carregar ideias da API
+async function loadIdeasFromApi() {
+    try {
+        const filters = {
+            category: currentFilter !== 'todas' ? currentFilter : undefined,
+            keyword: currentKeyword || undefined
+        };
+
+        const response = await apiService.getIdeas(filters);
+        ideas = response.data || [];
+        renderIdeas();
+        updateStats();
+    } catch (error) {
+        console.error('Erro ao carregar ideias da API:', error);
+        showErrorMessage('Erro ao carregar ideias do servidor.');
+        // Fallback para localStorage
+        isApiMode = false;
+        loadIdeasFromLocalStorage();
+    }
+}
+
+// Carregar ideias do localStorage (fallback)
+function loadIdeasFromLocalStorage() {
+    try {
+        const savedIdeas = localStorage.getItem('ideasApp_ideas');
+        if (savedIdeas) {
+            ideas = JSON.parse(savedIdeas);
+        } else {
+            // Ideias de exemplo para demonstração
+            ideas = [
+                {
+                    id: '1',
+                    title: 'App de Receitas Inteligente',
+                    description: 'Um aplicativo que sugere receitas baseadas nos ingredientes disponíveis na geladeira.',
+                    category: 'tecnologia',
+                    priority: 'alta',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                },
+                {
+                    id: '2',
+                    title: 'Curso Online de Programação',
+                    description: 'Criar um curso completo de programação web para iniciantes.',
+                    category: 'negocio',
+                    priority: 'media',
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                }
+            ];
+            saveIdeasToLocalStorage();
+        }
+        renderIdeas();
+        updateStats();
+    } catch (error) {
+        console.error('Erro ao carregar ideias:', error);
+        showErrorMessage('Erro ao carregar ideias.');
+    }
+}
+
+// ========== MÉTODOS DE SALVAMENTO ==========
+
+// Salvar ideias (API ou localStorage)
+async function saveIdea(ideaData, ideaId = null) {
+    try {
+        if (isApiMode) {
+            if (ideaId) {
+                // Atualizar ideia existente
+                const response = await apiService.updateIdea(ideaId, ideaData);
+                showSuccessMessage('Ideia atualizada com sucesso!');
+                return response.data;
+            } else {
+                // Criar nova ideia
+                const response = await apiService.createIdea(ideaData);
+                showSuccessMessage('Ideia criada com sucesso!');
+                return response.data;
+            }
+        } else {
+            // Modo localStorage
+            if (ideaId) {
+                const ideaIndex = ideas.findIndex(i => i.id === ideaId);
+                if (ideaIndex !== -1) {
+                    ideas[ideaIndex] = { ...ideas[ideaIndex], ...ideaData, updated_at: new Date().toISOString() };
+                }
+            } else {
+                const newIdea = {
+                    id: Date.now().toString(),
+                    ...ideaData,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString()
+                };
+                ideas.push(newIdea);
+            }
+            saveIdeasToLocalStorage();
+            return null;
+        }
+    } catch (error) {
+        console.error('Erro ao salvar ideia:', error);
+        showErrorMessage('Erro ao salvar ideia. Tente novamente.');
+        throw error;
+    }
+}
+
+// Excluir ideia (API ou localStorage)
+async function removeIdea(ideaId) {
+    try {
+        if (isApiMode) {
+            await apiService.deleteIdea(ideaId);
+            showSuccessMessage('Ideia excluída com sucesso!');
+        } else {
+            ideas = ideas.filter(idea => idea.id !== ideaId);
+            saveIdeasToLocalStorage();
+            showSuccessMessage('Ideia excluída com sucesso!');
+        }
+    } catch (error) {
+        console.error('Erro ao excluir ideia:', error);
+        showErrorMessage('Erro ao excluir ideia. Tente novamente.');
+        throw error;
+    }
+}
+
+// Salvar no localStorage (fallback)
+function saveIdeasToLocalStorage() {
+    try {
+        localStorage.setItem('ideasApp_ideas', JSON.stringify(ideas));
+    } catch (error) {
+        console.error('Erro ao salvar no localStorage:', error);
+    }
+}
+
+// ========== EVENT HANDLERS ATUALIZADOS ==========
 
 // Configurar event listeners
 function setupEventListeners() {
@@ -59,52 +241,53 @@ async function handleSubmitIdea(event) {
         title: formData.get('title'),
         description: formData.get('description'),
         category: formData.get('category'),
-        priority: formData.get('priority'),
-        updatedAt: new Date().toISOString()
+        priority: formData.get('priority')
     };
 
     try {
-        if (isEditMode) {
-            // Editar ideia existente
-            const ideaId = document.getElementById('ideaId').value;
-            const ideaIndex = ideas.findIndex(i => i.id === ideaId);
-            if (ideaIndex !== -1) {
-                ideas[ideaIndex] = { ...ideas[ideaIndex], ...ideaData };
-                showSuccessMessage('Ideia atualizada com sucesso!');
-            }
-        } else {
-            // Adicionar nova ideia
-            const newIdea = {
-                id: Date.now().toString(),
-                ...ideaData,
-                createdAt: new Date().toISOString()
-            };
-            ideas.push(newIdea);
-            showSuccessMessage('Ideia adicionada com sucesso!');
-        }
+        const ideaId = isEditMode ? document.getElementById('ideaId').value : null;
+        await saveIdea(ideaData, ideaId);
         
-        saveIdeasToLocalStorage();
         closeIdeaModal();
-        renderIdeas();
-        updateStats();
+        
+        // Recarregar ideias
+        if (isApiMode) {
+            await loadIdeasFromApi();
+        } else {
+            renderIdeas();
+            updateStats();
+        }
     } catch (error) {
-        console.error('Erro ao salvar ideia:', error);
-        showErrorMessage('Erro ao salvar ideia. Tente novamente.');
+        // Erro já foi tratado na função saveIdea
     }
 }
 
 // Manipular mudança de filtro
-function handleFilterChange(event) {
+async function handleFilterChange(event) {
     currentFilter = event.target.value;
-    renderIdeas();
-    updateStats();
+    
+    if (isApiMode) {
+        await loadIdeasFromApi();
+    } else {
+        renderIdeas();
+        updateStats();
+    }
 }
 
 // Manipular filtro por palavra-chave
-function handleKeywordFilter(event) {
+async function handleKeywordFilter(event) {
     currentKeyword = event.target.value.toLowerCase().trim();
-    renderIdeas();
-    updateStats();
+    
+    if (isApiMode) {
+        // Debounce para evitar muitas requisições
+        clearTimeout(window.keywordTimeout);
+        window.keywordTimeout = setTimeout(async () => {
+            await loadIdeasFromApi();
+        }, 300);
+    } else {
+        renderIdeas();
+        updateStats();
+    }
 }
 
 // Manipular mudança de visualização
@@ -120,80 +303,131 @@ function handleViewChange(event) {
     ideasContainer.className = `ideas-container ${view}-view`;
 }
 
-// Carregar ideias
-function loadIdeas() {
-    try {
-        const savedIdeas = localStorage.getItem('ideasApp_ideas');
-        if (savedIdeas) {
-            ideas = JSON.parse(savedIdeas);
-        } else {
-            // Ideias de exemplo para demonstração
-            ideas = [
-                {
-                    id: '1',
-                    title: 'App de Receitas Inteligente',
-                    description: 'Um aplicativo que sugere receitas baseadas nos ingredientes disponíveis na geladeira.',
-                    category: 'tecnologia',
-                    priority: 'alta',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                },
-                {
-                    id: '2',
-                    title: 'Curso Online de Programação',
-                    description: 'Criar um curso completo de programação web para iniciantes.',
-                    category: 'negocio',
-                    priority: 'media',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                },
-                {
-                    id: '3',
-                    title: 'Sistema de Organização Pessoal',
-                    description: 'Desenvolver um método eficaz para organizar tarefas e metas pessoais.',
-                    category: 'pessoal',
-                    priority: 'baixa',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString()
-                }
-            ];
-            saveIdeasToLocalStorage();
+// ========== FUNÇÕES AUXILIARES ATUALIZADAS ==========
+
+// Excluir ideia
+async function deleteIdea(ideaId) {
+    if (confirm('Tem certeza que deseja excluir esta ideia?')) {
+        try {
+            await removeIdea(ideaId);
+            
+            if (isApiMode) {
+                await loadIdeasFromApi();
+            } else {
+                renderIdeas();
+                updateStats();
+            }
+        } catch (error) {
+            // Erro já foi tratado na função removeIdea
         }
-        renderIdeas();
-        updateStats();
-    } catch (error) {
-        console.error('Erro ao carregar ideias:', error);
-        showErrorMessage('Erro ao carregar ideias.');
     }
 }
 
-// Salvar ideias no localStorage
-function saveIdeasToLocalStorage() {
+// Abrir modal de edição
+async function openEditModal(ideaId) {
     try {
-        localStorage.setItem('ideasApp_ideas', JSON.stringify(ideas));
+        let idea;
+        
+        if (isApiMode) {
+            const response = await apiService.getIdea(ideaId);
+            idea = response.data;
+        } else {
+            idea = ideas.find(i => i.id === ideaId);
+        }
+        
+        if (!idea) {
+            showErrorMessage('Ideia não encontrada.');
+            return;
+        }
+
+        isEditMode = true;
+        modalTitle.textContent = 'Editar Ideia';
+        
+        // Preencher formulário
+        document.getElementById('ideaId').value = idea.id;
+        document.getElementById('ideaTitle').value = idea.title;
+        document.getElementById('ideaDescription').value = idea.description || '';
+        document.getElementById('ideaCategory').value = idea.category;
+        document.getElementById('ideaPriority').value = idea.priority;
+        
+        ideaModal.style.display = 'flex';
     } catch (error) {
-        console.error('Erro ao salvar ideias:', error);
+        console.error('Erro ao carregar ideia para edição:', error);
+        showErrorMessage('Erro ao carregar ideia para edição.');
     }
 }
 
-// Renderizar ideias
-function renderIdeas() {
-    const filteredIdeas = filterIdeas();
+// Mostrar mensagem de sucesso
+function showSuccessMessage(message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'success-message';
+    messageDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
     
-    if (filteredIdeas.length === 0) {
-        ideasContainer.innerHTML = `
-            <div class="empty-state">
-                <i class="fas fa-lightbulb"></i>
-                <h3>Nenhuma ideia encontrada</h3>
-                <p>Que tal adicionar sua primeira ideia brilhante?</p>
-            </div>
-        `;
-        return;
-    }
+    const mainContent = document.querySelector('.main-content');
+    mainContent.insertBefore(messageDiv, mainContent.firstChild);
+    
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 3000);
+}
 
-    ideasContainer.innerHTML = filteredIdeas
-        .map(idea => createIdeaCard(idea))
-        .join('');
+// Mostrar mensagem de erro
+function showErrorMessage(message) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'error-message';
+    messageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+    
+    const mainContent = document.querySelector('.main-content');
+    mainContent.insertBefore(messageDiv, mainContent.firstChild);
+    
+    setTimeout(() => {
+        messageDiv.remove();
+    }, 5000);
+}
+
+// Função para testar conexão com o backend
+async function testBackendConnection() {
+    try {
+        const response = await fetch('/');
+        const data = await response.json();
+        console.log('Conexão com backend:', data);
+        return true;
+    } catch (error) {
+        console.error('Erro ao conectar com backend:', error);
+        return false;
+    }
+}
+
+// Testar conexão ao carregar a página
+testBackendConnection().then(connected => {
+    if (connected) {
+        console.log('✅ Backend conectado com sucesso!');
+    } else {
+        console.log('⚠️ Backend não disponível. Usando armazenamento local.');
+    }
+});
+
+// Abrir modal para adicionar nova ideia
+function openAddModal() {
+    isEditMode = false;
+    modalTitle.textContent = 'Nova Ideia';
+    document.getElementById('saveIdea').innerHTML = '<i class="fas fa-save"></i> Salvar Ideia';
+    ideaForm.reset();
+    ideaModal.style.display = 'block';
+}
+
+// Fechar modal
+function closeIdeaModal() {
+    ideaModal.style.display = 'none';
+    ideaForm.reset();
+    isEditMode = false;
+}
+
+// Atualizar estatísticas
+function updateStats() {
+    const filteredIdeas = filterIdeas();
+    totalIdeasStat.textContent = ideas.length;
+    filteredIdeasStat.textContent = filteredIdeas.length;
 }
 
 // Filtrar ideias
@@ -216,9 +450,29 @@ function filterIdeas() {
     return filteredIdeas;
 }
 
+// Renderizar ideias
+function renderIdeas() {
+    const filteredIdeas = filterIdeas();
+    
+    if (filteredIdeas.length === 0) {
+        ideasContainer.innerHTML = `
+            <div class="empty-state">
+                <i class="fas fa-lightbulb"></i>
+                <h3>Nenhuma ideia encontrada</h3>
+                <p>Que tal adicionar sua primeira ideia brilhante?</p>
+            </div>
+        `;
+        return;
+    }
+
+    ideasContainer.innerHTML = filteredIdeas
+        .map(idea => createIdeaCard(idea))
+        .join('');
+}
+
 // Criar card de ideia
 function createIdeaCard(idea) {
-    const formattedDate = formatDate(idea.createdAt);
+    const formattedDate = formatDate(idea.created_at);
     const categoryLabel = getCategoryLabel(idea.category);
     const priorityLabel = getPriorityLabel(idea.priority);
     
@@ -288,121 +542,9 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Mostrar mensagem de sucesso
-function showSuccessMessage(message) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'success-message';
-    messageDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
-    
-    const mainContent = document.querySelector('.main-content');
-    mainContent.insertBefore(messageDiv, mainContent.firstChild);
-    
-    setTimeout(() => {
-        messageDiv.remove();
-    }, 3000);
-}
-
-// Mostrar mensagem de erro
-function showErrorMessage(message) {
-    const messageDiv = document.createElement('div');
-    messageDiv.className = 'error-message';
-    messageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
-    
-    const mainContent = document.querySelector('.main-content');
-    mainContent.insertBefore(messageDiv, mainContent.firstChild);
-    
-    setTimeout(() => {
-        messageDiv.remove();
-    }, 5000);
-}
-
-// Função para testar conexão com o backend
-async function testBackendConnection() {
-    try {
-        const response = await fetch('/');
-        const data = await response.json();
-        console.log('Conexão com backend:', data);
-        return true;
-    } catch (error) {
-        console.error('Erro ao conectar com backend:', error);
-        return false;
-    }
-}
-
-// Testar conexão ao carregar a página
-testBackendConnection().then(connected => {
-    if (connected) {
-        console.log('✅ Backend conectado com sucesso!');
-    } else {
-        console.log('⚠️ Backend não disponível. Usando armazenamento local.');
-    }
-});
-
-// Abrir modal para adicionar nova ideia
-function openAddModal() {
-    isEditMode = false;
-    modalTitle.textContent = 'Nova Ideia';
-    document.getElementById('saveIdea').innerHTML = '<i class="fas fa-save"></i> Salvar Ideia';
-    ideaForm.reset();
-    ideaModal.style.display = 'block';
-}
-
-// Abrir modal para editar ideia
-function openEditModal(ideaId) {
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
-    
-    isEditMode = true;
-    modalTitle.textContent = 'Editar Ideia';
-    document.getElementById('saveIdea').innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
-    
-    document.getElementById('ideaId').value = idea.id;
-    document.getElementById('ideaTitle').value = idea.title;
-    document.getElementById('ideaDescription').value = idea.description;
-    document.getElementById('ideaCategory').value = idea.category;
-    document.getElementById('ideaPriority').value = idea.priority || 'media';
-    
-    ideaModal.style.display = 'block';
-}
-
-// Fechar modal
-function closeIdeaModal() {
-    ideaModal.style.display = 'none';
-    ideaForm.reset();
-    isEditMode = false;
-}
-
-// Atualizar estatísticas
-function updateStats() {
-    const filteredIdeas = filterIdeas();
-    totalIdeasStat.textContent = ideas.length;
-    filteredIdeasStat.textContent = filteredIdeas.length;
-}
-
-// Excluir ideia
-function deleteIdea(ideaId) {
-    const idea = ideas.find(i => i.id === ideaId);
-    if (!idea) return;
-    
-    const confirmDelete = confirm(`Tem certeza que deseja excluir a ideia "${idea.title}"?`);
-    if (!confirmDelete) return;
-    
-    try {
-        ideas = ideas.filter(i => i.id !== ideaId);
-        saveIdeasToLocalStorage();
-        
-        showSuccessMessage('Ideia excluída com sucesso!');
-        renderIdeas();
-        updateStats();
-    } catch (error) {
-        console.error('Erro ao excluir ideia:', error);
-        showErrorMessage('Erro ao excluir ideia. Tente novamente.');
-    }
-}
-
 // Exportar funções para uso global (se necessário)
 window.IdeasApp = {
-    loadIdeas,
+    loadIdeas: loadIdeasFromApi,
     renderIdeas,
     testBackendConnection
 };
