@@ -1,0 +1,15 @@
+{
+  "name": "ideasapp",
+  "version": "1.0.0",
+  "description": "Uma aplicação fullstack para gerenciamento de ideias",
+  "main": "backend/index.js",
+  "scripts": {
+    "start": "node backend/index.js",
+    "dev": "cd backend && npm run dev",
+    "install-backend": "cd backend && npm install",
+    "setup": "npm run install-backend"
+  },
+  "keywords": ["ideas", "fullstack", "nodejs", "express"],
+  "author": "",
+  "license": "MIT"
+} 

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IdeasApp - Gerenciador de Ideias</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>💡 IdeasApp</h1>
+            <p>Organize suas ideias de forma simples e eficiente</p>
+        </header>
+
+        <main>
+            <section class="add-idea-section">
+                <h2>Adicionar Nova Ideia</h2>
+                <form id="ideaForm" class="idea-form">
+                    <div class="form-group">
+                        <label for="ideaTitle">Título da Ideia:</label>
+                        <input type="text" id="ideaTitle" name="title" required placeholder="Digite o título da sua ideia...">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ideaDescription">Descrição:</label>
+                        <textarea id="ideaDescription" name="description" rows="4" placeholder="Descreva sua ideia em detalhes..."></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="ideaCategory">Categoria:</label>
+                        <select id="ideaCategory" name="category">
+                            <option value="tecnologia">Tecnologia</option>
+                            <option value="negocio">Negócio</option>
+                            <option value="pessoal">Pessoal</option>
+                            <option value="criativo">Criativo</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn-primary">Adicionar Ideia</button>
+                </form>
+            </section>
+
+            <section class="ideas-section">
+                <h2>Suas Ideias</h2>
+                <div class="filter-section">
+                    <label for="categoryFilter">Filtrar por categoria:</label>
+                    <select id="categoryFilter">
+                        <option value="todas">Todas</option>
+                        <option value="tecnologia">Tecnologia</option>
+                        <option value="negocio">Negócio</option>
+                        <option value="pessoal">Pessoal</option>
+                        <option value="criativo">Criativo</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                
+                <div id="ideasContainer" class="ideas-container">
+                    <!-- As ideias serão carregadas aqui dinamicamente -->
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2024 IdeasApp - Desenvolvido com ❤️</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
