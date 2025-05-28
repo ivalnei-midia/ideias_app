@@ -2,16 +2,23 @@
 let ideas = [];
 let currentFilter = 'todas';
 let currentKeyword = '';
+let currentView = 'grid';
+let isEditMode = false;
 
 // Elementos DOM
 const ideaForm = document.getElementById('ideaForm');
 const ideasContainer = document.getElementById('ideasContainer');
 const categoryFilter = document.getElementById('categoryFilter');
 const keywordFilter = document.getElementById('keywordFilter');
-const editModal = document.getElementById('editModal');
-const editForm = document.getElementById('editIdeaForm');
-const closeModal = document.querySelector('.close');
-const cancelEdit = document.getElementById('cancelEdit');
+const ideaModal = document.getElementById('ideaModal');
+const modalTitle = document.getElementById('modalTitle');
+const closeModal = document.getElementById('closeModal');
+const cancelIdea = document.getElementById('cancelIdea');
+const btnAddIdea = document.getElementById('btnAddIdea');
+const fabAddIdea = document.getElementById('fabAddIdea');
+const totalIdeasStat = document.getElementById('totalIdeas');
+const filteredIdeasStat = document.getElementById('filteredIdeas');
+const viewBtns = document.querySelectorAll('.view-btn');
 
 // Inicialização da aplicação
 document.addEventListener('DOMContentLoaded', function() {
@@ -25,44 +32,64 @@ function setupEventListeners() {
     ideaForm.addEventListener('submit', handleSubmitIdea);
     categoryFilter.addEventListener('change', handleFilterChange);
     keywordFilter.addEventListener('input', handleKeywordFilter);
-    editForm.addEventListener('submit', handleEditIdea);
-    closeModal.addEventListener('click', closeEditModal);
-    cancelEdit.addEventListener('click', closeEditModal);
+    closeModal.addEventListener('click', closeIdeaModal);
+    cancelIdea.addEventListener('click', closeIdeaModal);
+    btnAddIdea.addEventListener('click', openAddModal);
+    fabAddIdea.addEventListener('click', openAddModal);
+    
+    // View controls
+    viewBtns.forEach(btn => {
+        btn.addEventListener('click', handleViewChange);
+    });
     
     // Fechar modal clicando fora dele
     window.addEventListener('click', (event) => {
-        if (event.target === editModal) {
-            closeEditModal();
+        if (event.target === ideaModal) {
+            closeIdeaModal();
         }
     });
 }
 
-// Manipular envio de nova ideia
+// Manipular envio de ideia (adicionar ou editar)
 async function handleSubmitIdea(event) {
     event.preventDefault();
     
     const formData = new FormData(ideaForm);
-    const newIdea = {
-        id: Date.now().toString(),
+    const ideaData = {
         title: formData.get('title'),
         description: formData.get('description'),
         category: formData.get('category'),
-        createdAt: new Date().toISOString(),
+        priority: formData.get('priority'),
         updatedAt: new Date().toISOString()
     };
 
     try {
-        // Por enquanto, vamos armazenar localmente
-        // Futuramente, isso será uma chamada para a API
-        ideas.push(newIdea);
-        saveIdeasToLocalStorage();
+        if (isEditMode) {
+            // Editar ideia existente
+            const ideaId = document.getElementById('ideaId').value;
+            const ideaIndex = ideas.findIndex(i => i.id === ideaId);
+            if (ideaIndex !== -1) {
+                ideas[ideaIndex] = { ...ideas[ideaIndex], ...ideaData };
+                showSuccessMessage('Ideia atualizada com sucesso!');
+            }
+        } else {
+            // Adicionar nova ideia
+            const newIdea = {
+                id: Date.now().toString(),
+                ...ideaData,
+                createdAt: new Date().toISOString()
+            };
+            ideas.push(newIdea);
+            showSuccessMessage('Ideia adicionada com sucesso!');
+        }
         
-        showSuccessMessage('Ideia adicionada com sucesso!');
-        ideaForm.reset();
+        saveIdeasToLocalStorage();
+        closeIdeaModal();
         renderIdeas();
+        updateStats();
     } catch (error) {
-        console.error('Erro ao adicionar ideia:', error);
-        showErrorMessage('Erro ao adicionar ideia. Tente novamente.');
+        console.error('Erro ao salvar ideia:', error);
+        showErrorMessage('Erro ao salvar ideia. Tente novamente.');
     }
 }
 
@@ -70,12 +97,27 @@ async function handleSubmitIdea(event) {
 function handleFilterChange(event) {
     currentFilter = event.target.value;
     renderIdeas();
+    updateStats();
 }
 
 // Manipular filtro por palavra-chave
 function handleKeywordFilter(event) {
     currentKeyword = event.target.value.toLowerCase().trim();
     renderIdeas();
+    updateStats();
+}
+
+// Manipular mudança de visualização
+function handleViewChange(event) {
+    const view = event.target.closest('.view-btn').dataset.view;
+    currentView = view;
+    
+    // Atualizar botões ativos
+    viewBtns.forEach(btn => btn.classList.remove('active'));
+    event.target.closest('.view-btn').classList.add('active');
+    
+    // Atualizar classe do container
+    ideasContainer.className = `ideas-container ${view}-view`;
 }
 
 // Carregar ideias
@@ -92,6 +134,7 @@ function loadIdeas() {
                     title: 'App de Receitas Inteligente',
                     description: 'Um aplicativo que sugere receitas baseadas nos ingredientes disponíveis na geladeira.',
                     category: 'tecnologia',
+                    priority: 'alta',
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 },
@@ -100,6 +143,16 @@ function loadIdeas() {
                     title: 'Curso Online de Programação',
                     description: 'Criar um curso completo de programação web para iniciantes.',
                     category: 'negocio',
+                    priority: 'media',
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString()
+                },
+                {
+                    id: '3',
+                    title: 'Sistema de Organização Pessoal',
+                    description: 'Desenvolver um método eficaz para organizar tarefas e metas pessoais.',
+                    category: 'pessoal',
+                    priority: 'baixa',
                     createdAt: new Date().toISOString(),
                     updatedAt: new Date().toISOString()
                 }
@@ -107,6 +160,7 @@ function loadIdeas() {
             saveIdeasToLocalStorage();
         }
         renderIdeas();
+        updateStats();
     } catch (error) {
         console.error('Erro ao carregar ideias:', error);
         showErrorMessage('Erro ao carregar ideias.');
@@ -129,8 +183,9 @@ function renderIdeas() {
     if (filteredIdeas.length === 0) {
         ideasContainer.innerHTML = `
             <div class="empty-state">
+                <i class="fas fa-lightbulb"></i>
                 <h3>Nenhuma ideia encontrada</h3>
-                <p>Que tal adicionar sua primeira ideia?</p>
+                <p>Que tal adicionar sua primeira ideia brilhante?</p>
             </div>
         `;
         return;
@@ -165,21 +220,27 @@ function filterIdeas() {
 function createIdeaCard(idea) {
     const formattedDate = formatDate(idea.createdAt);
     const categoryLabel = getCategoryLabel(idea.category);
+    const priorityLabel = getPriorityLabel(idea.priority);
     
     return `
-        <div class="idea-card" data-id="${idea.id}">
+        <div class="idea-card priority-${idea.priority || 'media'}" data-id="${idea.id}">
             <h3>${escapeHtml(idea.title)}</h3>
             <p>${escapeHtml(idea.description)}</p>
             <div class="idea-meta">
-                <span class="idea-category">${categoryLabel}</span>
+                <div>
+                    <span class="idea-category">${categoryLabel}</span>
+                    <span class="idea-priority priority-${idea.priority || 'media'}">${priorityLabel}</span>
+                </div>
                 <span class="idea-date">${formattedDate}</span>
             </div>
             <div class="idea-actions">
                 <button class="btn-small btn-edit" onclick="openEditModal('${idea.id}')">
-                    ✏️ Editar
+                    <i class="fas fa-edit"></i>
+                    Editar
                 </button>
                 <button class="btn-small btn-delete" onclick="deleteIdea('${idea.id}')">
-                    🗑️ Excluir
+                    <i class="fas fa-trash"></i>
+                    Excluir
                 </button>
             </div>
         </div>
@@ -201,13 +262,23 @@ function formatDate(dateString) {
 // Obter label da categoria
 function getCategoryLabel(category) {
     const labels = {
-        'tecnologia': 'Tecnologia',
-        'negocio': 'Negócio',
-        'pessoal': 'Pessoal',
-        'criativo': 'Criativo',
-        'outro': 'Outro'
+        'tecnologia': '🔧 Tecnologia',
+        'negocio': '💼 Negócio',
+        'pessoal': '👤 Pessoal',
+        'criativo': '🎨 Criativo',
+        'outro': '📝 Outro'
     };
-    return labels[category] || 'Outro';
+    return labels[category] || '📝 Outro';
+}
+
+// Obter label da prioridade
+function getPriorityLabel(priority) {
+    const labels = {
+        'alta': '🔴 Alta',
+        'media': '🟡 Média',
+        'baixa': '🟢 Baixa'
+    };
+    return labels[priority] || '🟡 Média';
 }
 
 // Escapar HTML para prevenir XSS
@@ -221,10 +292,10 @@ function escapeHtml(text) {
 function showSuccessMessage(message) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'success-message';
-    messageDiv.textContent = message;
+    messageDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${message}`;
     
-    const form = document.querySelector('.add-idea-section');
-    form.insertBefore(messageDiv, form.firstChild);
+    const mainContent = document.querySelector('.main-content');
+    mainContent.insertBefore(messageDiv, mainContent.firstChild);
     
     setTimeout(() => {
         messageDiv.remove();
@@ -235,10 +306,10 @@ function showSuccessMessage(message) {
 function showErrorMessage(message) {
     const messageDiv = document.createElement('div');
     messageDiv.className = 'error-message';
-    messageDiv.textContent = message;
+    messageDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
     
-    const form = document.querySelector('.add-idea-section');
-    form.insertBefore(messageDiv, form.firstChild);
+    const mainContent = document.querySelector('.main-content');
+    mainContent.insertBefore(messageDiv, mainContent.firstChild);
     
     setTimeout(() => {
         messageDiv.remove();
@@ -267,54 +338,45 @@ testBackendConnection().then(connected => {
     }
 });
 
-// Abrir modal de edição
+// Abrir modal para adicionar nova ideia
+function openAddModal() {
+    isEditMode = false;
+    modalTitle.textContent = 'Nova Ideia';
+    document.getElementById('saveIdea').innerHTML = '<i class="fas fa-save"></i> Salvar Ideia';
+    ideaForm.reset();
+    ideaModal.style.display = 'block';
+}
+
+// Abrir modal para editar ideia
 function openEditModal(ideaId) {
     const idea = ideas.find(i => i.id === ideaId);
     if (!idea) return;
     
-    document.getElementById('editIdeaId').value = idea.id;
-    document.getElementById('editIdeaTitle').value = idea.title;
-    document.getElementById('editIdeaDescription').value = idea.description;
-    document.getElementById('editIdeaCategory').value = idea.category;
+    isEditMode = true;
+    modalTitle.textContent = 'Editar Ideia';
+    document.getElementById('saveIdea').innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
     
-    editModal.style.display = 'block';
+    document.getElementById('ideaId').value = idea.id;
+    document.getElementById('ideaTitle').value = idea.title;
+    document.getElementById('ideaDescription').value = idea.description;
+    document.getElementById('ideaCategory').value = idea.category;
+    document.getElementById('ideaPriority').value = idea.priority || 'media';
+    
+    ideaModal.style.display = 'block';
 }
 
-// Fechar modal de edição
-function closeEditModal() {
-    editModal.style.display = 'none';
-    editForm.reset();
+// Fechar modal
+function closeIdeaModal() {
+    ideaModal.style.display = 'none';
+    ideaForm.reset();
+    isEditMode = false;
 }
 
-// Manipular edição de ideia
-async function handleEditIdea(event) {
-    event.preventDefault();
-    
-    const ideaId = document.getElementById('editIdeaId').value;
-    const formData = new FormData(editForm);
-    
-    const updatedIdea = {
-        id: ideaId,
-        title: formData.get('title'),
-        description: formData.get('description'),
-        category: formData.get('category'),
-        updatedAt: new Date().toISOString()
-    };
-
-    try {
-        const ideaIndex = ideas.findIndex(i => i.id === ideaId);
-        if (ideaIndex !== -1) {
-            ideas[ideaIndex] = { ...ideas[ideaIndex], ...updatedIdea };
-            saveIdeasToLocalStorage();
-            
-            showSuccessMessage('Ideia atualizada com sucesso!');
-            closeEditModal();
-            renderIdeas();
-        }
-    } catch (error) {
-        console.error('Erro ao editar ideia:', error);
-        showErrorMessage('Erro ao editar ideia. Tente novamente.');
-    }
+// Atualizar estatísticas
+function updateStats() {
+    const filteredIdeas = filterIdeas();
+    totalIdeasStat.textContent = ideas.length;
+    filteredIdeasStat.textContent = filteredIdeas.length;
 }
 
 // Excluir ideia
@@ -331,6 +393,7 @@ function deleteIdea(ideaId) {
         
         showSuccessMessage('Ideia excluída com sucesso!');
         renderIdeas();
+        updateStats();
     } catch (error) {
         console.error('Erro ao excluir ideia:', error);
         showErrorMessage('Erro ao excluir ideia. Tente novamente.');

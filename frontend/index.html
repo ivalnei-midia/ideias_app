@@ -5,107 +5,166 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IdeasApp - Gerenciador de Ideias</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>💡 IdeasApp</h1>
-            <p>Organize suas ideias de forma simples e eficiente</p>
-        </header>
-
-        <main>
-            <section class="add-idea-section">
-                <h2>Adicionar Nova Ideia</h2>
-                <form id="ideaForm" class="idea-form">
-                    <div class="form-group">
-                        <label for="ideaTitle">Título da Ideia:</label>
-                        <input type="text" id="ideaTitle" name="title" required placeholder="Digite o título da sua ideia...">
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="ideaDescription">Descrição:</label>
-                        <textarea id="ideaDescription" name="description" rows="4" placeholder="Descreva sua ideia em detalhes..."></textarea>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="ideaCategory">Categoria:</label>
-                        <select id="ideaCategory" name="category">
-                            <option value="tecnologia">Tecnologia</option>
-                            <option value="negocio">Negócio</option>
-                            <option value="pessoal">Pessoal</option>
-                            <option value="criativo">Criativo</option>
-                            <option value="outro">Outro</option>
-                        </select>
-                    </div>
-                    
-                    <button type="submit" class="btn-primary">Adicionar Ideia</button>
-                </form>
-            </section>
-
-            <section class="ideas-section">
-                <h2>Suas Ideias</h2>
-                <div class="filter-section">
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>IdeasApp</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <h3>Filtros</h3>
                     <div class="filter-group">
-                        <label for="keywordFilter">Buscar por palavra-chave:</label>
+                        <label for="keywordFilter">
+                            <i class="fas fa-search"></i>
+                            Buscar ideias
+                        </label>
                         <input type="text" id="keywordFilter" placeholder="Digite uma palavra-chave..." />
                     </div>
+                    
                     <div class="filter-group">
-                        <label for="categoryFilter">Filtrar por categoria:</label>
+                        <label for="categoryFilter">
+                            <i class="fas fa-tags"></i>
+                            Categoria
+                        </label>
                         <select id="categoryFilter">
-                            <option value="todas">Todas</option>
-                            <option value="tecnologia">Tecnologia</option>
-                            <option value="negocio">Negócio</option>
-                            <option value="pessoal">Pessoal</option>
-                            <option value="criativo">Criativo</option>
-                            <option value="outro">Outro</option>
+                            <option value="todas">Todas as categorias</option>
+                            <option value="tecnologia">🔧 Tecnologia</option>
+                            <option value="negocio">💼 Negócio</option>
+                            <option value="pessoal">👤 Pessoal</option>
+                            <option value="criativo">🎨 Criativo</option>
+                            <option value="outro">📝 Outro</option>
                         </select>
                     </div>
                 </div>
                 
-                <div id="ideasContainer" class="ideas-container">
+                <div class="nav-section">
+                    <h3>Estatísticas</h3>
+                    <div class="stats">
+                        <div class="stat-item">
+                            <span class="stat-number" id="totalIdeas">0</span>
+                            <span class="stat-label">Total de Ideias</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number" id="filteredIdeas">0</span>
+                            <span class="stat-label">Exibindo</span>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="main-header">
+                <div class="header-content">
+                    <h1>Suas Ideias Brilhantes</h1>
+                    <p>Capture, organize e desenvolva suas melhores ideias</p>
+                </div>
+                <button class="btn-add-idea" id="btnAddIdea">
+                    <i class="fas fa-plus"></i>
+                    Nova Ideia
+                </button>
+            </header>
+
+            <!-- Ideas Grid -->
+            <section class="ideas-section">
+                <div class="section-header">
+                    <div class="view-controls">
+                        <button class="view-btn active" data-view="grid">
+                            <i class="fas fa-th"></i>
+                        </button>
+                        <button class="view-btn" data-view="list">
+                            <i class="fas fa-list"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="ideasContainer" class="ideas-container grid-view">
                     <!-- As ideias serão carregadas aqui dinamicamente -->
                 </div>
             </section>
         </main>
-
-        <footer>
-            <p>&copy; 2024 IdeasApp - Desenvolvido com ❤️</p>
-        </footer>
     </div>
 
-    <!-- Modal para edição de ideias -->
-    <div id="editModal" class="modal">
+    <!-- Floating Action Button -->
+    <div class="fab-container">
+        <button class="fab" id="fabAddIdea">
+            <i class="fas fa-plus"></i>
+        </button>
+    </div>
+
+    <!-- Modal para adicionar/editar ideias -->
+    <div id="ideaModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Editar Ideia</h3>
-                <span class="close">&times;</span>
+                <h3 id="modalTitle">Nova Ideia</h3>
+                <button class="close-btn" id="closeModal">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <form id="editIdeaForm" class="idea-form">
-                <input type="hidden" id="editIdeaId" />
+            <form id="ideaForm" class="idea-form">
+                <input type="hidden" id="ideaId" />
+                
                 <div class="form-group">
-                    <label for="editIdeaTitle">Título da Ideia:</label>
-                    <input type="text" id="editIdeaTitle" name="title" required />
+                    <label for="ideaTitle">
+                        <i class="fas fa-heading"></i>
+                        Título da Ideia
+                    </label>
+                    <input type="text" id="ideaTitle" name="title" required placeholder="Digite um título marcante..." />
                 </div>
                 
                 <div class="form-group">
-                    <label for="editIdeaDescription">Descrição:</label>
-                    <textarea id="editIdeaDescription" name="description" rows="4"></textarea>
+                    <label for="ideaDescription">
+                        <i class="fas fa-align-left"></i>
+                        Descrição
+                    </label>
+                    <textarea id="ideaDescription" name="description" rows="4" placeholder="Descreva sua ideia em detalhes..."></textarea>
                 </div>
                 
                 <div class="form-group">
-                    <label for="editIdeaCategory">Categoria:</label>
-                    <select id="editIdeaCategory" name="category">
-                        <option value="tecnologia">Tecnologia</option>
-                        <option value="negocio">Negócio</option>
-                        <option value="pessoal">Pessoal</option>
-                        <option value="criativo">Criativo</option>
-                        <option value="outro">Outro</option>
+                    <label for="ideaCategory">
+                        <i class="fas fa-tag"></i>
+                        Categoria
+                    </label>
+                    <select id="ideaCategory" name="category">
+                        <option value="tecnologia">🔧 Tecnologia</option>
+                        <option value="negocio">💼 Negócio</option>
+                        <option value="pessoal">👤 Pessoal</option>
+                        <option value="criativo">🎨 Criativo</option>
+                        <option value="outro">📝 Outro</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="ideaPriority">
+                        <i class="fas fa-star"></i>
+                        Prioridade
+                    </label>
+                    <select id="ideaPriority" name="priority">
+                        <option value="baixa">🟢 Baixa</option>
+                        <option value="media" selected>🟡 Média</option>
+                        <option value="alta">🔴 Alta</option>
                     </select>
                 </div>
                 
                 <div class="modal-actions">
-                    <button type="button" class="btn-secondary" id="cancelEdit">Cancelar</button>
-                    <button type="submit" class="btn-primary">Salvar Alterações</button>
+                    <button type="button" class="btn-secondary" id="cancelIdea">
+                        <i class="fas fa-times"></i>
+                        Cancelar
+                    </button>
+                    <button type="submit" class="btn-primary" id="saveIdea">
+                        <i class="fas fa-save"></i>
+                        Salvar Ideia
+                    </button>
                 </div>
             </form>
         </div>
