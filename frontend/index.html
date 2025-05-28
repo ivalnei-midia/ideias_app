@@ -45,15 +45,21 @@
             <section class="ideas-section">
                 <h2>Suas Ideias</h2>
                 <div class="filter-section">
-                    <label for="categoryFilter">Filtrar por categoria:</label>
-                    <select id="categoryFilter">
-                        <option value="todas">Todas</option>
-                        <option value="tecnologia">Tecnologia</option>
-                        <option value="negocio">Negócio</option>
-                        <option value="pessoal">Pessoal</option>
-                        <option value="criativo">Criativo</option>
-                        <option value="outro">Outro</option>
-                    </select>
+                    <div class="filter-group">
+                        <label for="keywordFilter">Buscar por palavra-chave:</label>
+                        <input type="text" id="keywordFilter" placeholder="Digite uma palavra-chave..." />
+                    </div>
+                    <div class="filter-group">
+                        <label for="categoryFilter">Filtrar por categoria:</label>
+                        <select id="categoryFilter">
+                            <option value="todas">Todas</option>
+                            <option value="tecnologia">Tecnologia</option>
+                            <option value="negocio">Negócio</option>
+                            <option value="pessoal">Pessoal</option>
+                            <option value="criativo">Criativo</option>
+                            <option value="outro">Outro</option>
+                        </select>
+                    </div>
                 </div>
                 
                 <div id="ideasContainer" class="ideas-container">
@@ -65,6 +71,44 @@
         <footer>
             <p>&copy; 2024 IdeasApp - Desenvolvido com ❤️</p>
         </footer>
+    </div>
+
+    <!-- Modal para edição de ideias -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Editar Ideia</h3>
+                <span class="close">&times;</span>
+            </div>
+            <form id="editIdeaForm" class="idea-form">
+                <input type="hidden" id="editIdeaId" />
+                <div class="form-group">
+                    <label for="editIdeaTitle">Título da Ideia:</label>
+                    <input type="text" id="editIdeaTitle" name="title" required />
+                </div>
+                
+                <div class="form-group">
+                    <label for="editIdeaDescription">Descrição:</label>
+                    <textarea id="editIdeaDescription" name="description" rows="4"></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editIdeaCategory">Categoria:</label>
+                    <select id="editIdeaCategory" name="category">
+                        <option value="tecnologia">Tecnologia</option>
+                        <option value="negocio">Negócio</option>
+                        <option value="pessoal">Pessoal</option>
+                        <option value="criativo">Criativo</option>
+                        <option value="outro">Outro</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-secondary" id="cancelEdit">Cancelar</button>
+                    <button type="submit" class="btn-primary">Salvar Alterações</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <script src="script.js"></script>

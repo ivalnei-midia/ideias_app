@@ -1,11 +1,17 @@
 // Estado da aplicação
 let ideas = [];
 let currentFilter = 'todas';
+let currentKeyword = '';
 
 // Elementos DOM
 const ideaForm = document.getElementById('ideaForm');
 const ideasContainer = document.getElementById('ideasContainer');
 const categoryFilter = document.getElementById('categoryFilter');
+const keywordFilter = document.getElementById('keywordFilter');
+const editModal = document.getElementById('editModal');
+const editForm = document.getElementById('editIdeaForm');
+const closeModal = document.querySelector('.close');
+const cancelEdit = document.getElementById('cancelEdit');
 
 // Inicialização da aplicação
 document.addEventListener('DOMContentLoaded', function() {
@@ -18,6 +24,17 @@ document.addEventListener('DOMContentLoaded', function() {
 function setupEventListeners() {
     ideaForm.addEventListener('submit', handleSubmitIdea);
     categoryFilter.addEventListener('change', handleFilterChange);
+    keywordFilter.addEventListener('input', handleKeywordFilter);
+    editForm.addEventListener('submit', handleEditIdea);
+    closeModal.addEventListener('click', closeEditModal);
+    cancelEdit.addEventListener('click', closeEditModal);
+    
+    // Fechar modal clicando fora dele
+    window.addEventListener('click', (event) => {
+        if (event.target === editModal) {
+            closeEditModal();
+        }
+    });
 }
 
 // Manipular envio de nova ideia
@@ -52,6 +69,12 @@ async function handleSubmitIdea(event) {
 // Manipular mudança de filtro
 function handleFilterChange(event) {
     currentFilter = event.target.value;
+    renderIdeas();
+}
+
+// Manipular filtro por palavra-chave
+function handleKeywordFilter(event) {
+    currentKeyword = event.target.value.toLowerCase().trim();
     renderIdeas();
 }
 
@@ -120,10 +143,22 @@ function renderIdeas() {
 
 // Filtrar ideias
 function filterIdeas() {
-    if (currentFilter === 'todas') {
-        return ideas;
+    let filteredIdeas = ideas;
+    
+    // Filtrar por categoria
+    if (currentFilter !== 'todas') {
+        filteredIdeas = filteredIdeas.filter(idea => idea.category === currentFilter);
     }
-    return ideas.filter(idea => idea.category === currentFilter);
+    
+    // Filtrar por palavra-chave
+    if (currentKeyword) {
+        filteredIdeas = filteredIdeas.filter(idea => 
+            idea.title.toLowerCase().includes(currentKeyword) ||
+            idea.description.toLowerCase().includes(currentKeyword)
+        );
+    }
+    
+    return filteredIdeas;
 }
 
 // Criar card de ideia
@@ -138,6 +173,14 @@ function createIdeaCard(idea) {
             <div class="idea-meta">
                 <span class="idea-category">${categoryLabel}</span>
                 <span class="idea-date">${formattedDate}</span>
+            </div>
+            <div class="idea-actions">
+                <button class="btn-small btn-edit" onclick="openEditModal('${idea.id}')">
+                    ✏️ Editar
+                </button>
+                <button class="btn-small btn-delete" onclick="deleteIdea('${idea.id}')">
+                    🗑️ Excluir
+                </button>
             </div>
         </div>
     `;
@@ -224,9 +267,83 @@ testBackendConnection().then(connected => {
     }
 });
 
+// Abrir modal de edição
+function openEditModal(ideaId) {
+    const idea = ideas.find(i => i.id === ideaId);
+    if (!idea) return;
+    
+    document.getElementById('editIdeaId').value = idea.id;
+    document.getElementById('editIdeaTitle').value = idea.title;
+    document.getElementById('editIdeaDescription').value = idea.description;
+    document.getElementById('editIdeaCategory').value = idea.category;
+    
+    editModal.style.display = 'block';
+}
+
+// Fechar modal de edição
+function closeEditModal() {
+    editModal.style.display = 'none';
+    editForm.reset();
+}
+
+// Manipular edição de ideia
+async function handleEditIdea(event) {
+    event.preventDefault();
+    
+    const ideaId = document.getElementById('editIdeaId').value;
+    const formData = new FormData(editForm);
+    
+    const updatedIdea = {
+        id: ideaId,
+        title: formData.get('title'),
+        description: formData.get('description'),
+        category: formData.get('category'),
+        updatedAt: new Date().toISOString()
+    };
+
+    try {
+        const ideaIndex = ideas.findIndex(i => i.id === ideaId);
+        if (ideaIndex !== -1) {
+            ideas[ideaIndex] = { ...ideas[ideaIndex], ...updatedIdea };
+            saveIdeasToLocalStorage();
+            
+            showSuccessMessage('Ideia atualizada com sucesso!');
+            closeEditModal();
+            renderIdeas();
+        }
+    } catch (error) {
+        console.error('Erro ao editar ideia:', error);
+        showErrorMessage('Erro ao editar ideia. Tente novamente.');
+    }
+}
+
+// Excluir ideia
+function deleteIdea(ideaId) {
+    const idea = ideas.find(i => i.id === ideaId);
+    if (!idea) return;
+    
+    const confirmDelete = confirm(`Tem certeza que deseja excluir a ideia "${idea.title}"?`);
+    if (!confirmDelete) return;
+    
+    try {
+        ideas = ideas.filter(i => i.id !== ideaId);
+        saveIdeasToLocalStorage();
+        
+        showSuccessMessage('Ideia excluída com sucesso!');
+        renderIdeas();
+    } catch (error) {
+        console.error('Erro ao excluir ideia:', error);
+        showErrorMessage('Erro ao excluir ideia. Tente novamente.');
+    }
+}
+
 // Exportar funções para uso global (se necessário)
 window.IdeasApp = {
     loadIdeas,
     renderIdeas,
     testBackendConnection
-}; 
+};
+
+// Tornar funções disponíveis globalmente para os botões
+window.openEditModal = openEditModal;
+window.deleteIdea = deleteIdea; 
