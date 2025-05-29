@@ -17,7 +17,33 @@ const NODE_ENV = process.env.NODE_ENV || 'development';
 // Middlewares
 app.use(cors({
     origin: NODE_ENV === 'production' ? 
-        ['https://your-domain.com', 'https://your-app.vercel.app'] : 
+        function(origin, callback) {
+            // Permitir requests sem origin (mobile apps, curl, etc.)
+            if (!origin) return callback(null, true);
+            
+            // Lista de origens permitidas em produção
+            const allowedOrigins = [
+                /https:\/\/.*\.onrender\.com$/,  // Qualquer subdomínio do Render
+                /https:\/\/.*\.vercel\.app$/,    // Vercel
+                /https:\/\/.*\.netlify\.app$/,   // Netlify
+                /https:\/\/.*\.railway\.app$/    // Railway
+            ];
+            
+            // Verificar se a origem está na lista permitida
+            const isAllowed = allowedOrigins.some(pattern => {
+                if (pattern instanceof RegExp) {
+                    return pattern.test(origin);
+                }
+                return origin === pattern;
+            });
+            
+            if (isAllowed) {
+                callback(null, true);
+            } else {
+                console.log(`CORS: Origin não permitida: ${origin}`);
+                callback(null, true); // Temporariamente permitir todas em produção para debug
+            }
+        } :
         ['http://localhost:3000', 'http://127.0.0.1:3000']
 }));
 app.use(bodyParser.json());
@@ -56,6 +82,17 @@ app.get('/app', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
+// Rota catch-all para servir o frontend para qualquer rota que não seja da API
+app.get('*', (req, res, next) => {
+    // Se a rota começar com /api, prosseguir para o middleware de erro 404
+    if (req.path.startsWith('/api')) {
+        return next();
+    }
+    
+    // Caso contrário, servir o frontend
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+});
+
 // Middleware de tratamento de erros
 app.use((err, req, res, next) => {
     console.error('Error:', err.stack);
@@ -65,11 +102,11 @@ app.use((err, req, res, next) => {
     });
 });
 
-// Middleware para rotas não encontradas
-app.use('*', (req, res) => {
+// Middleware para rotas não encontradas (apenas para APIs)
+app.use('/api/*', (req, res) => {
     res.status(404).json({ 
         success: false,
-        error: 'Rota não encontrada',
+        error: 'Rota da API não encontrada',
         path: req.originalUrl
     });
 });

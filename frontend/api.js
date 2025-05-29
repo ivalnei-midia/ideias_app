@@ -1,10 +1,22 @@
 // Serviço para comunicação com a API
 class ApiService {
     constructor() {
-        this.baseURL = '/api';
+        // Detectar se estamos em produção e configurar a URL base adequadamente
+        this.baseURL = this.getBaseURL() + '/api';
         this.defaultHeaders = {
             'Content-Type': 'application/json'
         };
+    }
+
+    // Determinar a URL base correta baseada no ambiente
+    getBaseURL() {
+        // Se estamos em localhost ou desenvolvimento, usar URL relativa
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return '';
+        }
+        
+        // Se estamos em produção, usar a URL atual (que deve ser o backend do Render)
+        return window.location.origin;
     }
 
     // Método auxiliar para fazer requisições

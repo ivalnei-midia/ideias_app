@@ -31,6 +31,10 @@ document.addEventListener('DOMContentLoaded', async function() {
 // Inicializar aplicação
 async function initializeApp() {
     try {
+        console.log('🚀 Inicializando IdeasApp...');
+        console.log('🌐 URL atual:', window.location.href);
+        console.log('🔗 URL base da API:', apiService.baseURL);
+        
         // Verificar se a API está disponível
         const apiAvailable = await apiService.isApiAvailable();
         
@@ -41,11 +45,12 @@ async function initializeApp() {
             await loadIdeasFromApi();
         } else {
             console.log('⚠️ API não disponível - Usando localStorage');
+            console.log('🔍 Tentativa de conexão com:', apiService.baseURL + '/health');
             isApiMode = false;
             loadIdeasFromLocalStorage();
         }
     } catch (error) {
-        console.error('Erro na inicialização:', error);
+        console.error('❌ Erro na inicialização:', error);
         isApiMode = false;
         loadIdeasFromLocalStorage();
     }
@@ -551,4 +556,38 @@ window.IdeasApp = {
 
 // Tornar funções disponíveis globalmente para os botões
 window.openEditModal = openEditModal;
-window.deleteIdea = deleteIdea; 
+window.deleteIdea = deleteIdea;
+
+// ========== FUNÇÃO DE DEBUG ==========
+
+// Função de debug para testar conectividade (disponível globalmente)
+window.debugApiConnection = async function() {
+    console.log('🔍 DIAGNÓSTICO DE CONECTIVIDADE API');
+    console.log('=====================================');
+    console.log('🌐 URL atual:', window.location.href);
+    console.log('🏠 Hostname:', window.location.hostname);
+    console.log('🔗 URL base da API:', apiService.baseURL);
+    console.log('🎯 Endpoint de health:', apiService.baseURL + '/health');
+    
+    try {
+        console.log('📡 Testando conexão...');
+        const response = await fetch(apiService.baseURL + '/health');
+        console.log('📊 Status da resposta:', response.status);
+        console.log('✅ Headers da resposta:', [...response.headers.entries()]);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('✅ API respondeu com sucesso:', data);
+            console.log('💾 Status do banco:', data.database);
+            console.log('⏱️ Uptime do servidor:', data.uptime + 's');
+        } else {
+            console.log('❌ API respondeu com erro:', response.status);
+        }
+    } catch (error) {
+        console.log('❌ Erro ao conectar com a API:', error.message);
+        console.log('🔍 Tipo do erro:', error.name);
+        console.log('📋 Stack trace:', error.stack);
+    }
+    
+    console.log('=====================================');
+}; 
