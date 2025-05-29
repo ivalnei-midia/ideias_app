@@ -35,24 +35,51 @@ async function initializeApp() {
         console.log('🌐 URL atual:', window.location.href);
         console.log('🔗 URL base da API:', apiService.baseURL);
         
-        // Verificar se a API está disponível
-        const apiAvailable = await apiService.isApiAvailable();
-        
-        if (apiAvailable) {
-            console.log('✅ API disponível - Modo API ativado');
+        // Se não estamos em localhost, sempre tentar usar API primeiro
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            console.log('🔧 Modo produção detectado - priorizando API');
             isApiMode = true;
-            await migrateLocalStorageToApi();
-            await loadIdeasFromApi();
+            
+            try {
+                await migrateLocalStorageToApi();
+                await loadIdeasFromApi();
+                console.log('✅ API funcionando perfeitamente!');
+            } catch (error) {
+                console.error('❌ Erro na API, mas continuando no modo API:', error);
+                // Mesmo com erro, continuar tentando usar API
+                // pois em produção devemos sempre tentar a API
+                renderIdeas(); // Renderizar vazio se necessário
+                updateStats();
+            }
         } else {
-            console.log('⚠️ API não disponível - Usando localStorage');
-            console.log('🔍 Tentativa de conexão com:', apiService.baseURL + '/health');
-            isApiMode = false;
-            loadIdeasFromLocalStorage();
+            // Localhost - verificação normal
+            const apiAvailable = await apiService.isApiAvailable();
+            
+            if (apiAvailable) {
+                console.log('✅ API disponível - Modo API ativado');
+                isApiMode = true;
+                await migrateLocalStorageToApi();
+                await loadIdeasFromApi();
+            } else {
+                console.log('⚠️ API não disponível - Usando localStorage');
+                console.log('🔍 Tentativa de conexão com:', apiService.baseURL + '/health');
+                isApiMode = false;
+                loadIdeasFromLocalStorage();
+            }
         }
     } catch (error) {
         console.error('❌ Erro na inicialização:', error);
-        isApiMode = false;
-        loadIdeasFromLocalStorage();
+        
+        // Em produção, sempre tentar API mesmo com erro
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+            console.log('🔄 Forçando modo API em produção...');
+            isApiMode = true;
+            renderIdeas();
+            updateStats();
+        } else {
+            isApiMode = false;
+            loadIdeasFromLocalStorage();
+        }
     }
 }
 
@@ -229,10 +256,34 @@ function setupEventListeners() {
         btn.addEventListener('click', handleViewChange);
     });
     
+    // Mobile menu controls
+    const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    if (mobileMenuBtn && sidebar && sidebarOverlay) {
+        mobileMenuBtn.addEventListener('click', toggleMobileMenu);
+        sidebarOverlay.addEventListener('click', closeMobileMenu);
+        
+        // Close menu when clicking on links inside sidebar
+        sidebar.addEventListener('click', (e) => {
+            if (window.innerWidth <= 768) {
+                closeMobileMenu();
+            }
+        });
+    }
+    
     // Fechar modal clicando fora dele
     window.addEventListener('click', (event) => {
         if (event.target === ideaModal) {
             closeIdeaModal();
+        }
+    });
+    
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            closeMobileMenu();
         }
     });
 }
@@ -259,8 +310,8 @@ async function handleSubmitIdea(event) {
         if (isApiMode) {
             await loadIdeasFromApi();
         } else {
-            renderIdeas();
-            updateStats();
+        renderIdeas();
+        updateStats();
         }
     } catch (error) {
         // Erro já foi tratado na função saveIdea
@@ -274,8 +325,8 @@ async function handleFilterChange(event) {
     if (isApiMode) {
         await loadIdeasFromApi();
     } else {
-        renderIdeas();
-        updateStats();
+    renderIdeas();
+    updateStats();
     }
 }
 
@@ -290,8 +341,8 @@ async function handleKeywordFilter(event) {
             await loadIdeasFromApi();
         }, 300);
     } else {
-        renderIdeas();
-        updateStats();
+    renderIdeas();
+    updateStats();
     }
 }
 
@@ -556,7 +607,7 @@ window.IdeasApp = {
 
 // Tornar funções disponíveis globalmente para os botões
 window.openEditModal = openEditModal;
-window.deleteIdea = deleteIdea;
+window.deleteIdea = deleteIdea; 
 
 // ========== FUNÇÃO DE DEBUG ==========
 
@@ -590,4 +641,21 @@ window.debugApiConnection = async function() {
     }
     
     console.log('=====================================');
-}; 
+};
+
+// Funções para menu mobile
+function toggleMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.toggle('open');
+    sidebarOverlay.classList.toggle('active');
+}
+
+function closeMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('active');
+} 

@@ -189,9 +189,31 @@ class ApiService {
     // Verificar se a API está disponível
     async isApiAvailable() {
         try {
+            // Se não estamos em localhost, forçar tentativa de usar API
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                console.log('🔧 Modo produção detectado - forçando uso da API');
+                // Tentar por 3 segundos
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 3000);
+                
+                try {
+                    const response = await fetch(this.baseURL + '/health', {
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                    return response.ok;
+                } catch (error) {
+                    clearTimeout(timeoutId);
+                    console.log('⚠️ API não respondeu em 3s, mas tentaremos usar mesmo assim');
+                    return true; // Forçar uso da API em produção
+                }
+            }
+            
+            // Localhost - verificação normal
             await this.checkHealth();
             return true;
         } catch (error) {
+            console.log('❌ API não disponível:', error.message);
             return false;
         }
     }
