@@ -40,6 +40,9 @@ router.get('/meta/tags', async (req, res) => {
 
 // GET /api/ideas - Listar todas as ideias com filtros opcionais
 router.get('/', async (req, res) => {
+    console.log('📋 LISTANDO IDEIAS');
+    console.log('   Query params:', req.query);
+    
     try {
         const filters = {
             category: req.query.category,
@@ -48,14 +51,17 @@ router.get('/', async (req, res) => {
             keyword: req.query.keyword
         };
 
+        console.log('🔍 Filtros aplicados:', filters);
         const ideas = await Idea.findAll(filters);
+        console.log(`✅ ${ideas.length} ideias encontradas`);
+        
         res.json({
             success: true,
             data: ideas,
             count: ideas.length
         });
     } catch (error) {
-        console.error('Erro ao buscar ideias:', error);
+        console.error('❌ ERRO AO BUSCAR IDEIAS:', error);
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor'
@@ -90,11 +96,16 @@ router.get('/:id', async (req, res) => {
 
 // POST /api/ideas - Criar nova ideia
 router.post('/', async (req, res) => {
+    console.log('📝 CRIANDO NOVA IDEIA');
+    console.log('   Body recebido:', req.body);
+    console.log('   Headers:', req.headers);
+    
     try {
         const { title, description, category, priority, tags } = req.body;
 
         // Validação básica
         if (!title || !title.trim()) {
+            console.log('❌ Validação falhou: título vazio');
             return res.status(400).json({
                 success: false,
                 error: 'Título é obrigatório'
@@ -102,6 +113,7 @@ router.post('/', async (req, res) => {
         }
 
         if (!category) {
+            console.log('❌ Validação falhou: categoria vazia');
             return res.status(400).json({
                 success: false,
                 error: 'Categoria é obrigatória'
@@ -109,6 +121,7 @@ router.post('/', async (req, res) => {
         }
 
         if (!priority) {
+            console.log('❌ Validação falhou: prioridade vazia');
             return res.status(400).json({
                 success: false,
                 error: 'Prioridade é obrigatória'
@@ -123,7 +136,9 @@ router.post('/', async (req, res) => {
             tags: tags || ''
         };
 
+        console.log('✅ Dados validados, criando no banco:', ideaData);
         const newIdea = await Idea.create(ideaData);
+        console.log('✅ Ideia criada com sucesso:', newIdea);
         
         res.status(201).json({
             success: true,
@@ -131,7 +146,8 @@ router.post('/', async (req, res) => {
             message: 'Ideia criada com sucesso'
         });
     } catch (error) {
-        console.error('Erro ao criar ideia:', error);
+        console.error('❌ ERRO AO CRIAR IDEIA:', error);
+        console.error('   Stack:', error.stack);
         res.status(500).json({
             success: false,
             error: 'Erro interno do servidor'

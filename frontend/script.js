@@ -173,25 +173,37 @@ function loadIdeasFromLocalStorage() {
 
 // Salvar ideias (API ou localStorage)
 async function saveIdea(ideaData, ideaId = null) {
+    console.log('💾 SALVANDO IDEIA:', { ideaData, ideaId, isApiMode });
+    
     try {
         if (isApiMode) {
+            console.log('🔗 Tentando salvar via API...');
+            console.log('   URL da API:', apiService.baseURL);
+            console.log('   Dados a salvar:', ideaData);
+            
             if (ideaId) {
                 // Atualizar ideia existente
+                console.log('✏️ Atualizando ideia existente:', ideaId);
                 const response = await apiService.updateIdea(ideaId, ideaData);
+                console.log('✅ Resposta da atualização:', response);
                 showSuccessMessage('Ideia atualizada com sucesso!');
                 return response.data;
             } else {
                 // Criar nova ideia
+                console.log('➕ Criando nova ideia...');
                 const response = await apiService.createIdea(ideaData);
+                console.log('✅ Resposta da criação:', response);
                 showSuccessMessage('Ideia criada com sucesso!');
                 return response.data;
             }
         } else {
+            console.log('💿 Salvando no localStorage...');
             // Modo localStorage
             if (ideaId) {
                 const ideaIndex = ideas.findIndex(i => i.id === ideaId);
                 if (ideaIndex !== -1) {
                     ideas[ideaIndex] = { ...ideas[ideaIndex], ...ideaData, updated_at: new Date().toISOString() };
+                    console.log('✅ Ideia atualizada no localStorage');
                 }
             } else {
                 const newIdea = {
@@ -201,13 +213,19 @@ async function saveIdea(ideaData, ideaId = null) {
                     updated_at: new Date().toISOString()
                 };
                 ideas.push(newIdea);
+                console.log('✅ Nova ideia adicionada ao localStorage:', newIdea);
             }
             saveIdeasToLocalStorage();
+            showSuccessMessage('Ideia salva localmente!');
             return null;
         }
     } catch (error) {
-        console.error('Erro ao salvar ideia:', error);
-        showErrorMessage('Erro ao salvar ideia. Tente novamente.');
+        console.error('❌ ERRO AO SALVAR IDEIA:', error);
+        console.error('   Stack trace:', error.stack);
+        console.error('   Modo API ativo?', isApiMode);
+        console.error('   URL tentada:', apiService.baseURL);
+        
+        showErrorMessage(`Erro ao salvar ideia: ${error.message}`);
         throw error;
     }
 }
@@ -658,4 +676,95 @@ function closeMobileMenu() {
     
     sidebar.classList.remove('open');
     sidebarOverlay.classList.remove('active');
-} 
+}
+
+// ========== FUNÇÃO DE DEBUG AVANÇADO ==========
+
+// Função de debug completo para testar todas as funcionalidades
+window.debugCompleto = async function() {
+    console.log('🔍 DIAGNÓSTICO COMPLETO DO SISTEMA');
+    console.log('====================================');
+    
+    // 1. Informações básicas
+    console.log('📍 INFORMAÇÕES BÁSICAS:');
+    console.log('   URL atual:', window.location.href);
+    console.log('   Hostname:', window.location.hostname);
+    console.log('   É localhost?', window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    console.log('   Modo API ativo?', isApiMode);
+    console.log('   URL base da API:', apiService.baseURL);
+    
+    // 2. Teste de conectividade
+    console.log('\n📡 TESTE DE CONECTIVIDADE:');
+    try {
+        const healthResponse = await fetch(apiService.baseURL + '/health');
+        console.log('   Status /health:', healthResponse.status);
+        if (healthResponse.ok) {
+            const healthData = await healthResponse.json();
+            console.log('   Dados do health:', healthData);
+        } else {
+            console.log('   Erro no health:', await healthResponse.text());
+        }
+    } catch (error) {
+        console.log('   ❌ Erro na conectividade:', error.message);
+    }
+    
+    // 3. Teste de endpoints
+    console.log('\n🎯 TESTE DE ENDPOINTS:');
+    try {
+        const ideasResponse = await fetch(apiService.baseURL + '/ideas');
+        console.log('   Status /ideas:', ideasResponse.status);
+        if (ideasResponse.ok) {
+            const ideasData = await ideasResponse.json();
+            console.log('   Ideias encontradas:', ideasData.data?.length || 0);
+            console.log('   Primeiras ideias:', ideasData.data?.slice(0, 2));
+        } else {
+            console.log('   Erro em /ideas:', await ideasResponse.text());
+        }
+    } catch (error) {
+        console.log('   ❌ Erro ao buscar ideias:', error.message);
+    }
+    
+    // 4. Teste de criação
+    console.log('\n✏️ TESTE DE CRIAÇÃO:');
+    try {
+        const testIdea = {
+            title: `Teste Debug ${new Date().toLocaleTimeString()}`,
+            description: 'Ideia criada pelo sistema de debug',
+            category: 'tecnologia',
+            priority: 'media'
+        };
+        
+        const createResponse = await fetch(apiService.baseURL + '/ideas', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(testIdea)
+        });
+        
+        console.log('   Status criação:', createResponse.status);
+        if (createResponse.ok) {
+            const createdIdea = await createResponse.json();
+            console.log('   ✅ Ideia criada:', createdIdea.data?.title);
+            
+            // Verificar se aparece na lista
+            const verifyResponse = await fetch(apiService.baseURL + '/ideas');
+            if (verifyResponse.ok) {
+                const allIdeas = await verifyResponse.json();
+                const foundIdea = allIdeas.data?.find(i => i.title === testIdea.title);
+                console.log('   ✅ Ideia encontrada na lista?', !!foundIdea);
+            }
+        } else {
+            console.log('   ❌ Erro na criação:', await createResponse.text());
+        }
+    } catch (error) {
+        console.log('   ❌ Erro no teste de criação:', error.message);
+    }
+    
+    // 5. Estado local
+    console.log('\n💾 ESTADO LOCAL:');
+    console.log('   Ideias na memória:', ideas.length);
+    console.log('   localStorage existe?', !!localStorage.getItem('ideasApp_ideas'));
+    console.log('   Flag de migração:', localStorage.getItem('ideasApp_migrated'));
+    
+    console.log('\n====================================');
+    console.log('✅ Diagnóstico completo concluído!');
+}; 

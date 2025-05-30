@@ -77,6 +77,44 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// Rota de debug para testar o banco de dados
+app.get('/api/debug', async (req, res) => {
+    try {
+        const Idea = require('./models/Idea');
+        
+        // Testar criação
+        const testIdea = await Idea.create({
+            title: `Debug Test ${new Date().toLocaleTimeString()}`,
+            description: 'Teste criado pelo endpoint de debug',
+            category: 'tecnologia',
+            priority: 'media'
+        });
+        
+        // Testar busca
+        const allIdeas = await Idea.findAll();
+        
+        // Testar busca por ID
+        const foundIdea = await Idea.findById(testIdea.id);
+        
+        res.json({
+            success: true,
+            debug: {
+                ideaCriada: testIdea,
+                totalIdeias: allIdeas.length,
+                ideiaEncontrada: !!foundIdea,
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (error) {
+        console.error('Erro no debug:', error);
+        res.status(500).json({
+            success: false,
+            error: error.message,
+            stack: error.stack
+        });
+    }
+});
+
 // Rota para servir o frontend
 app.get('/app', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
