@@ -1,21 +1,34 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const fs = require('fs');
 
 // Caminho para o arquivo do banco de dados
 const dbPath = path.join(__dirname, '../data/ideas.db');
 
+// Garantir que o diretório data existe
+const dbDir = path.dirname(dbPath);
+if (!fs.existsSync(dbDir)) {
+    console.log('📁 Criando diretório data...');
+    fs.mkdirSync(dbDir, { recursive: true });
+}
+
 // Criar instância do banco de dados
 const db = new sqlite3.Database(dbPath, (err) => {
     if (err) {
-        console.error('Erro ao conectar com o banco de dados:', err.message);
+        console.error('❌ Erro ao conectar com o banco de dados:', err.message);
+        console.error('   Path:', dbPath);
+        console.error('   Diretório existe?', fs.existsSync(dbDir));
     } else {
-        console.log('Conectado ao banco de dados SQLite.');
+        console.log('✅ Conectado ao banco de dados SQLite.');
+        console.log('   Path:', dbPath);
         initializeDatabase();
     }
 });
 
 // Inicializar tabelas do banco de dados
 function initializeDatabase() {
+    console.log('🔧 Inicializando banco de dados...');
+    
     // Tabela de ideias
     db.run(`
         CREATE TABLE IF NOT EXISTS ideas (
@@ -31,9 +44,19 @@ function initializeDatabase() {
         )
     `, (err) => {
         if (err) {
-            console.error('Erro ao criar tabela ideas:', err.message);
+            console.error('❌ Erro ao criar tabela ideas:', err.message);
+            console.error('   Stack:', err.stack);
         } else {
-            console.log('Tabela ideas criada/verificada com sucesso.');
+            console.log('✅ Tabela ideas criada/verificada com sucesso.');
+            
+            // Verificar se a tabela está acessível
+            db.get('SELECT COUNT(*) as count FROM ideas', (err, row) => {
+                if (err) {
+                    console.error('❌ Erro ao acessar tabela ideas:', err.message);
+                } else {
+                    console.log('   Total de ideias:', row.count);
+                }
+            });
         }
     });
 
@@ -47,10 +70,20 @@ function initializeDatabase() {
         )
     `, (err) => {
         if (err) {
-            console.error('Erro ao criar tabela categories:', err.message);
+            console.error('❌ Erro ao criar tabela categories:', err.message);
+            console.error('   Stack:', err.stack);
         } else {
-            console.log('Tabela categories criada/verificada com sucesso.');
+            console.log('✅ Tabela categories criada/verificada com sucesso.');
             insertDefaultCategories();
+            
+            // Verificar se a tabela está acessível
+            db.get('SELECT COUNT(*) as count FROM categories', (err, row) => {
+                if (err) {
+                    console.error('❌ Erro ao acessar tabela categories:', err.message);
+                } else {
+                    console.log('   Total de categorias:', row.count);
+                }
+            });
         }
     });
 }
